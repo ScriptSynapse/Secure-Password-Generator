@@ -36,7 +36,7 @@ No server or dependencies required.
 
 ## 🛡️ Security Notes
 
-* Passwords are generated **client-side** only.
+* Passwords are generated ***client-side*** only.
 * No data is sent to any server.
 * Uses the Web Crypto API for cryptographically secure randomness.
 
