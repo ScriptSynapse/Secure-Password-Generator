@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Secure Password Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Secure Password Generator</h1>
+        <p>Create strong, random passwords to keep your accounts safe</p>
+    </header>
+
+    <div class="main-content">
+        <div class="flex-container">
+            <div class="settings-panel">
+                <h2>Password Settings</h2>
+
+                <div class="form-group">
+                    <label for="length">Password Length: <span id="length-value">16</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="length" min="4" max="64" value="16">
+                        <input type="number" id="length-input" min="4" max="64" value="16">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Character Types</label>
+
+                    <div class="toggle-group">
+                        <span>Uppercase Letters (A-Z)</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="uppercase" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <span>Lowercase Letters (a-z)</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="lowercase" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <span>Numbers (0-9)</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="numbers" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <span>Symbols (!@#$%^&*)</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="symbols" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="output-panel">
+                <h2>Generated Password</h2>
+
+                <div class="output-field">
+                    <textarea class="password-output" id="password" readonly></textarea>
+                    <button class="btn btn-secondary" id="copy-btn">
+                        <i class="fas fa-copy icon"></i> Copy to Clipboard
+                    </button>
+                </div>
+
+                <div class="strength-meter">
+                    <div class="strength-value" id="strength-text">Password Strength</div>
+                    <div class="strength-meter-bar">
+                        <div class="strength-meter-fill" id="strength-fill"></div>
+                    </div>
+                    <div class="strength-labels">
+                        <span>Weak</span>
+                        <span>Medium</span>
+                        <span>Strong</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="generate-btn-container">
+            <button class="btn btn-primary btn-block" id="generate-btn">
+                <i class="fas fa-key icon"></i> Generate Password
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast">
+    <i class="fas fa-check-circle"></i>
+    <span>Password copied to clipboard!</span>
+</div>
+
+<script src="main.js"></script>
+</body>
+</html>
