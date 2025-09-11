@@ -248,7 +248,7 @@ input:checked + .toggle-slider:before {
 
 .strength-meter-fill {
     height: 100%;
-    width: 0%;
+    width: 0;
     transition: var(--transition);
 }
 
