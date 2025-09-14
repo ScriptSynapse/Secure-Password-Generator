@@ -74,26 +74,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (symbolsToggle.checked) complexity += 32;
 
         const entropy = Math.log2(complexity) * length;
-        if (entropy < 40) return { strength: 'weak', percentage: 33 };
-        if (entropy < 80) return { strength: 'medium', percentage: 66 };
-        return { strength: 'strong', percentage: 100 };
+
+        if (entropy < 40) return { label: "Baby Password 🍼", percentage: 20, class: "weak" };
+        if (entropy < 60) return { label: "Needs Training 🏋️", percentage: 40, class: "weak" };
+        if (entropy < 80) return { label: "Getting Stronger ⚡", percentage: 60, class: "medium" };
+        if (entropy < 100) return { label: "Iron Wall 🛡️", percentage: 80, class: "strong" };
+        return { label: "Hacker-Resistant 🔥", percentage: 100, class: "strong" };
     }
 
     function updateStrengthMeter() {
         const strength = calculateStrength();
-        strengthText.textContent = `Strength: ${strength.strength.charAt(0).toUpperCase() + strength.strength.slice(1)}`;
-        strengthText.classList.remove('weak', 'medium', 'strong');
-        strengthText.classList.add(strength.strength);
+        strengthText.textContent = strength.label;
+        strengthText.className = `strength-value ${strength.class}`;
         strengthFill.style.width = `${strength.percentage}%`;
 
-        if (strength.strength === 'weak') {
+        if (strength.class === 'weak') {
             strengthFill.style.backgroundColor = 'var(--danger)';
-        } else if (strength.strength === 'medium') {
+        } else if (strength.class === 'medium') {
             strengthFill.style.backgroundColor = 'var(--warning)';
         } else {
             strengthFill.style.backgroundColor = 'var(--success)';
         }
     }
+
 
     generateBtn.addEventListener('click', function() {
         const password = generatePassword();
@@ -113,65 +116,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
     generateBtn.click();
 });
-
-// ===== Password Manager =====
-const saveForm = document.getElementById('save-form');
-const siteInput = document.getElementById('site');
-const usernameInput = document.getElementById('username');
-const savedPasswordInput = document.getElementById('saved-password');
-const passwordList = document.getElementById('password-list');
-
-function loadPasswords() {
-    passwordList.innerHTML = '';
-    const passwords = JSON.parse(localStorage.getItem('passwords')) || [];
-    passwords.forEach((entry, index) => {
-        const item = document.createElement('div');
-        item.classList.add('password-item');
-        item.innerHTML = `
-                <div>
-                    <strong>${entry.site}</strong> (${entry.username})  
-                    <span class="hidden-password">********</span>
-                </div>
-                <div class="actions">
-                    <button class="btn btn-secondary btn-sm show-btn">Show</button>
-                    <button class="btn btn-danger btn-sm delete-btn">Delete</button>
-                </div>
-            `;
-
-        // Show/hide password
-        item.querySelector('.show-btn').addEventListener('click', () => {
-            const passField = item.querySelector('.hidden-password');
-            if (passField.textContent === '********') {
-                passField.textContent = entry.password;
-            } else {
-                passField.textContent = '********';
-            }
-        });
-
-        // Delete password
-        item.querySelector('.delete-btn').addEventListener('click', () => {
-            passwords.splice(index, 1);
-            localStorage.setItem('passwords', JSON.stringify(passwords));
-            loadPasswords();
-        });
-
-        passwordList.appendChild(item);
-    });
-}
-
-saveForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const site = siteInput.value.trim();
-    const username = usernameInput.value.trim();
-    const password = savedPasswordInput.value.trim();
-
-    if (site && username && password) {
-        const passwords = JSON.parse(localStorage.getItem('passwords')) || [];
-        passwords.push({ site, username, password });
-        localStorage.setItem('passwords', JSON.stringify(passwords));
-        saveForm.reset();
-        loadPasswords();
-    }
-});
-
-loadPasswords();
