@@ -331,7 +331,6 @@ input:checked + .toggle-slider:before {
     position: fixed;
     bottom: 2rem;
     right: 2rem;
-    background: var(--success);
     color: white;
     padding: 1rem 1.5rem;
     border-radius: 8px;
