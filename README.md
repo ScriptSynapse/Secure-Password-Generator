@@ -1,4 +1,4 @@
-# 🔑 Secure Password Generator
+# 🔑 VaultX -  A Secure Password Generator
 
 A simple, modern web app to generate strong and secure passwords.
 It uses the browser’s built-in `crypto.getRandomValues` for randomness and provides real-time strength feedback.
