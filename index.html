@@ -9,10 +9,21 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="container">
+
+<!-- Master Password Lock Screen -->
+<div id="lock-screen" class="lock-screen">
+    <h2>Enter Master Password</h2>
+    <input type="password" id="master-input" placeholder="Master Password">
+    <button id="unlock-btn" class="btn btn-primary">Unlock</button>
+    <p id="error-msg" class="error-msg"></p>
+</div>
+
+<!-- Main App (hidden until unlocked) -->
+<div class="container" id="main-container" style="display:none;">
     <header>
         <h1>VaultX</h1>
         <p>With VaultX, you don’t just generate strong passwords—you manage them effortlessly in one secure digital vault.</p>
+        <button id="logout-btn" class="btn btn-secondary">Logout</button>
     </header>
 
     <div class="main-content">
@@ -102,6 +113,8 @@
     <span>Password copied to clipboard!</span>
 </div>
 
+<!-- Load config first -->
+<script src="config.js"></script>
 <script src="main.js"></script>
 </body>
 </html>
