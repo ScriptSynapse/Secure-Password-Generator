@@ -1,0 +1,2 @@
+const MASTER_PASSWORD = "VaultX123";
+const AUTO_LOGOUT_TIME = 10 * 60 * 1000;
