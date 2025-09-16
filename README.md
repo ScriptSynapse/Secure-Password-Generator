@@ -1,46 +1,66 @@
-# 🔑 VaultX -  A Secure Password Generator
+# VaultX 🔐
 
-A simple, modern web app to generate strong and secure passwords.
-It uses the browser’s built-in `crypto.getRandomValues` for randomness and provides real-time strength feedback.
+A modern, secure, and easy-to-use password generator and manager with a master password lock screen.
 
 ## 🚀 Features
 
-* Adjustable password length (4–64 characters)
-* Toggle options for:
+* **Master Password Protection** – Access the app only after entering the correct master key.
+* **Auto Logout** – Automatic logout after inactivity (default: 10 minutes).
+* **Customizable Passwords** – Choose length (4–64) and character types (uppercase, lowercase, numbers, symbols).
+* **Password Strength Meter** – Visual indicator of password strength.
+* **Copy to Clipboard** – One-click password copying with a toast notification.
+* **Responsive UI** – Works across devices with a clean dark-themed design.
 
-    * Uppercase letters (A–Z)
-    * Lowercase letters (a–z)
-    * Numbers (0–9)
-    * Symbols (!@#\$%^&\*)
-* Copy to clipboard with one click
-* Password strength meter (weak, medium, strong)
-* Responsive design with a clean dark UI
+## 🛠️ Tech Stack
 
-## 🖥️ Demo
-
-Open the `index.html` file in your browser to use the generator.
-No server or dependencies required.
+* **HTML5** – Structure
+* **CSS3** – Styling with modern design & animations
+* **JavaScript (Vanilla)** – Functionality & logic
+* **Font Awesome** – Icons
+* **Google Fonts (Roboto)** – Typography
 
 ## 📂 Project Structure
 
 ```
-.
-├── index.html   # Main file (HTML, CSS, JS all included)
+├── index.html      # Main app UI
+├── style.css       # Styling
+├── config.js       # Configuration (Master Password, Auto-logout timer)
+├── main.js         # App logic (locked until unlocked)
 ```
 
-## ⚙️ How It Works
+## ⚙️ Configuration
 
-* Uses **vanilla JavaScript** with `crypto.getRandomValues` to generate random characters.
-* Password strength is calculated based on entropy (length × character set size).
-* Passwords are displayed in a styled textarea with copy-to-clipboard support.
+You can update **config.js** to change app settings:
 
-## 🛡️ Security Notes
+```js
+const MASTER_PASSWORD = "VaultX123";   // Change your master password here
+const AUTO_LOGOUT_TIME = 10 * 60 * 1000; // Auto logout time in ms (10 min default)
+```
 
-* Passwords are generated ***client-side*** only.
-* No data is sent to any server.
-* Uses the Web Crypto API for cryptographically secure randomness.
+## ▶️ Getting Started
 
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/your-username/vaultx.git
+   ```
+2. Open `index.html` in your browser.
+3. Enter the master password to unlock and start generating passwords.
+
+## 📸 Screenshots
+
+![img.png](img.png)
+![img_1.png](img_1.png)
+
+## 🔒 Disclaimer
+
+This is a **frontend-only demo**. Do not use it as your sole password manager for sensitive data. For real-world use, integrate with secure backend storage and encryption.
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome!
+Feel free to open an issue or submit a pull request.
 
 ## 📜 License
 
-This project is licensed under MIT license.
+This project is licensed under the MIT License.
