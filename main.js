@@ -1,4 +1,88 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // --- Master Password Lock ---
+    const lockScreen = document.getElementById('lock-screen');
+    const mainContainer = document.getElementById('main-container');
+    const unlockBtn = document.getElementById('unlock-btn');
+    const masterInput = document.getElementById('master-input');
+    const errorMsg = document.getElementById('error-msg');
+
+    // logout button will exist inside mainContainer
+    function setupLogout() {
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function() {
+                localStorage.removeItem("unlocked");
+                location.reload(); // reload back to lock screen
+            });
+        }
+    }
+
+    // Get current master password (config.js default or stored one)
+    function getMasterPassword() {
+        return localStorage.getItem("masterPassword") || MASTER_PASSWORD;
+    }
+
+    // Check if already unlocked
+    if (localStorage.getItem("unlocked") === "true") {
+        lockScreen.style.display = "none";
+        mainContainer.style.display = "block";
+        setupLogout(); // now logout works
+        resetInactivityTimer();
+    }
+
+    unlockBtn.addEventListener('click', function() {
+        if (masterInput.value === getMasterPassword()) {
+            localStorage.setItem("unlocked", "true");
+            lockScreen.style.display = "none";
+            mainContainer.style.display = "block";
+            setupLogout(); // setup after unlock
+            resetInactivityTimer();
+        } else {
+            errorMsg.textContent = "Incorrect Master Password!";
+            masterInput.value = "";
+        }
+    });
+
+
+
+    unlockBtn.addEventListener('click', function() {
+        if (masterInput.value === MASTER_PASSWORD) {
+            localStorage.setItem("unlocked", "true"); // remember login
+            lockScreen.style.display = "none";
+            mainContainer.style.display = "block";
+            resetInactivityTimer();
+        } else {
+            errorMsg.textContent = "Incorrect Master Password!";
+            masterInput.value = "";
+        }
+    });
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            localStorage.removeItem("unlocked");
+            location.reload(); // reload back to lock screen
+        });
+    }
+
+    // --- Auto Logout after inactivity ---
+    let inactivityTimer;
+
+    function resetInactivityTimer() {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+            localStorage.removeItem("unlocked");
+            alert("Session expired. Please enter the master password again.");
+            location.reload();
+        }, AUTO_LOGOUT_TIME); // now comes from config.js
+    }
+
+    document.addEventListener("mousemove", resetInactivityTimer);
+    document.addEventListener("keypress", resetInactivityTimer);
+    document.addEventListener("click", resetInactivityTimer);
+});
+
+
+// --- Password Generator Logic ---
     const lengthSlider = document.getElementById('length');
     const lengthInput = document.getElementById('length-input');
     const lengthValue = document.getElementById('length-value');
@@ -97,7 +181,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-
     generateBtn.addEventListener('click', function() {
         const password = generatePassword();
         passwordOutput.value = password;
@@ -112,7 +195,6 @@ document.addEventListener('DOMContentLoaded', function() {
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 2000);
         });
-    });
 
-    generateBtn.click();
 });
+const lockScreen = document.getElementById('lock-screen');
