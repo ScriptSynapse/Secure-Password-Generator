@@ -49,9 +49,10 @@ const AUTO_LOGOUT_TIME = 10 * 60 * 1000; // Auto logout time in ms (10 min defau
 
 ## 📸 Screenshots
 
-<img width="1211" height="737" alt="image" src="https://github.com/user-attachments/assets/d37a8398-1b7a-401a-b25e-94ce108ed676" />
+<img width="1170" height="751" alt="image" src="https://github.com/user-attachments/assets/e66529f9-7711-435e-849f-33be0cc633c1" />
 
-<img width="1426" height="881" alt="image" src="https://github.com/user-attachments/assets/c8a64a72-b7c3-4334-945c-1efaeb3172b6" />
+<img width="976" height="821" alt="image" src="https://github.com/user-attachments/assets/94b6fb97-4255-4b19-bf32-0ab8895048cc" />
+
 
 
 ## 🔒 Disclaimer
