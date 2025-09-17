@@ -51,7 +51,9 @@ You can adjust settings in **`config.js`**:
 * `DEFAULT_SETTINGS` → password generator defaults
 
 ## 📸 Screenshots
+<img width="1170" height="751" alt="Screenshot 2025-09-17 164959" src="https://github.com/user-attachments/assets/63a51881-3a3e-48e2-909b-a38a882c2bd0" />
 
+<img width="976" height="821" alt="Screenshot 2025-09-17 165020" src="https://github.com/user-attachments/assets/bb592e62-f69e-4b3d-bcda-7ba086c6709a" />
 
 
 ## 🔒 Security Notice
