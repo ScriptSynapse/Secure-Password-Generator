@@ -1,63 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VaultX</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VaultX — Secure Password Manager</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<!-- Master Password Lock Screen -->
+<!-- Lock Screen -->
 <div id="lock-screen" class="lock-screen">
-    <h2>Enter Master Password</h2>
-    <input type="password" id="master-input" placeholder="Master Password">
-    <button id="unlock-btn" class="btn btn-primary">Unlock</button>
-    <p id="error-msg" class="error-msg"></p>
+    <div class="logo">VaultX</div>
+    <p class="subtitle">Secure Password Manager</p>
+    <div class="lock-form">
+        <input type="password" id="master-input" placeholder="Enter master password" autocomplete="current-password">
+        <div class="button-group">
+            <button id="unlock-btn" class="btn btn-primary">
+                <i class="fas fa-unlock"></i> Unlock
+            </button>
+            <button id="set-master-btn" class="btn btn-secondary">
+                <i class="fas fa-key"></i> Set Master
+            </button>
+        </div>
+        <div id="error-msg" class="error-msg"></div>
+    </div>
 </div>
 
-<!-- Main App (hidden until unlocked) -->
-<div class="container" id="main-container" style="display:none;">
-    <header>
+<!-- Main App -->
+<div id="main-container" class="container hidden">
+    <header class="header">
         <h1>VaultX</h1>
-        <p>With VaultX, you don’t just generate strong passwords—you manage them effortlessly in one secure digital vault.</p>
-        <button id="logout-btn" class="btn btn-secondary">Logout</button>
+        <p>Your passwords, secured with military-grade encryption</p>
+        <div class="header-actions">
+            <button id="logout-btn" class="btn btn-secondary">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+            <div class="dropdown">
+                <button id="export-btn" class="btn btn-secondary dropdown-toggle">
+                    <i class="fas fa-download"></i> Export <i class="fas fa-chevron-down"></i>
+                </button>
+                <div id="export-dropdown" class="dropdown-menu hidden">
+                    <button id="export-json-btn" class="dropdown-item">
+                        <i class="fas fa-file-code"></i> Export as JSON
+                    </button>
+                    <button id="export-excel-btn" class="dropdown-item">
+                        <i class="fas fa-file-excel"></i> Export as Excel
+                    </button>
+                    <button id="export-csv-btn" class="dropdown-item">
+                        <i class="fas fa-file-csv"></i> Export as CSV
+                    </button>
+                </div>
+            </div>
+            <input id="import-file" type="file" class="hidden" accept=".json,.xlsx,.xls,.csv">
+            <button id="import-btn" class="btn btn-secondary">
+                <i class="fas fa-upload"></i> Import
+            </button>
+            <button id="change-master-btn" class="btn btn-secondary">
+                <i class="fas fa-key"></i> Change Master
+            </button>
+        </div>
     </header>
 
-    <div class="main-content">
-        <div class="flex-container">
-            <div class="settings-panel">
-                <h2>Password Settings</h2>
-
+    <div class="main-grid">
+        <!-- Settings Panel -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Password Generator</h2>
+            </div>
+            <div class="card-content">
                 <div class="form-group">
-                    <label for="length">Password Length: <span id="length-value">16</span></label>
-                    <div class="slider-container">
-                        <input type="range" id="length" min="4" max="64" value="16">
-                        <input type="number" id="length-input" min="4" max="64" value="16">
+                    <label class="form-label">
+                        Password Length: <span class="slider-value" id="length-value">16</span>
+                    </label>
+                    <div class="slider-group">
+                        <input type="range" id="length-slider" class="slider" min="4" max="64" value="16">
+                        <input type="number" id="length-input" class="form-input slider-input" min="4" max="64" value="16">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Character Types</label>
-
+                    <label class="form-label">Character Types</label>
                     <div class="toggle-group">
-                        <span>Uppercase Letters (A-Z)</span>
+                        <span>Uppercase (A-Z)</span>
                         <label class="toggle-switch">
                             <input type="checkbox" id="uppercase" checked>
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-
                     <div class="toggle-group">
-                        <span>Lowercase Letters (a-z)</span>
+                        <span>Lowercase (a-z)</span>
                         <label class="toggle-switch">
                             <input type="checkbox" id="lowercase" checked>
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-
                     <div class="toggle-group">
                         <span>Numbers (0-9)</span>
                         <label class="toggle-switch">
@@ -65,9 +102,8 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-
                     <div class="toggle-group">
-                        <span>Symbols (!@#$%^&*)</span>
+                        <span>Symbols (!@#$%)</span>
                         <label class="toggle-switch">
                             <input type="checkbox" id="symbols" checked>
                             <span class="toggle-slider"></span>
@@ -76,20 +112,60 @@
                 </div>
             </div>
 
-            <div class="output-panel">
-                <h2>Generated Password</h2>
+            <div class="card-header">
+                <h2 class="card-title">Add Entry</h2>
+            </div>
+            <div class="card-content">
+                <div class="form-group">
+                    <label class="form-label" for="site-input">Site / App</label>
+                    <input id="site-input" type="text" class="form-input" placeholder="e.g., gmail.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="username-input">Username / Email</label>
+                    <input id="username-input" type="text" class="form-input" placeholder="user@example.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password-input">Password</label>
+                    <div class="input-group">
+                        <input id="password-input" type="password" class="form-input" placeholder="Enter password">
+                        <button id="use-generated-btn" class="btn btn-secondary">Use Generated</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="notes-input">Notes (Optional)</label>
+                    <textarea id="notes-input" class="form-input form-textarea" placeholder="Additional notes..."></textarea>
+                </div>
+                <div class="button-group">
+                    <button id="save-entry-btn" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Entry
+                    </button>
+                    <button id="clear-form-btn" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
 
-                <div class="output-field">
-                    <textarea class="password-output" id="password" readonly></textarea>
-                    <button class="btn btn-secondary" id="copy-btn">
-                        <i class="fas fa-copy icon"></i> Copy to Clipboard
+        <!-- Output Panel -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Generated Password</h2>
+            </div>
+            <div class="card-content">
+                <textarea id="password-output" class="password-output" readonly placeholder="Click Generate to create a password"></textarea>
+                <div class="button-group" style="margin-top: 0.5rem;">
+                    <button id="generate-btn" class="btn btn-primary">
+                        <i class="fas fa-dice"></i> Generate
+                    </button>
+                    <button id="copy-btn" class="btn btn-secondary">
+                        <i class="fas fa-copy"></i> Copy
                     </button>
                 </div>
 
                 <div class="strength-meter">
-                    <div class="strength-value" id="strength-text">Password Strength</div>
-                    <div class="strength-meter-bar">
-                        <div class="strength-meter-fill" id="strength-fill"></div>
+                    <div id="strength-text" class="strength-value">Password Strength</div>
+                    <div class="strength-bar">
+                        <div id="strength-fill" class="strength-fill"></div>
                     </div>
                     <div class="strength-labels">
                         <span>Weak</span>
@@ -98,22 +174,35 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="generate-btn-container">
-            <button class="btn btn-primary btn-block" id="generate-btn">
-                <i class="fas fa-key icon"></i> Generate Password
-            </button>
+            <div class="card-header">
+                <h2 class="card-title">Your Vault</h2>
+            </div>
+            <div class="card-content">
+                <div class="vault-controls">
+                    <input id="search-input" type="text" class="form-input search-input" placeholder="Search vault...">
+                    <button id="clear-vault-btn" class="btn btn-secondary">
+                        <i class="fas fa-trash"></i> Clear All
+                    </button>
+                </div>
+                <div id="vault-list" class="vault-list">
+                    <div class="empty-state">
+                        <i class="fas fa-lock" style="font-size: 2rem; margin-bottom: 1rem; color: var(--text-secondary);"></i>
+                        <p>Your vault is empty</p>
+                        <p style="font-size: 0.875rem; margin-top: 0.5rem;">Add your first password entry above</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="toast" id="toast">
+<div id="toast" class="toast">
     <i class="fas fa-check-circle"></i>
-    <span>Password copied to clipboard!</span>
+    <span id="toast-text">Success!</span>
 </div>
 
-<!-- Load config first -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="config.js"></script>
 <script src="main.js"></script>
 </body>
