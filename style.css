@@ -410,9 +410,22 @@ input:checked + .toggle-slider:before {
     color: var(--text-secondary);
 }
 
-.strength-weak { color: var(--danger); }
-.strength-medium { color: var(--warning); }
-.strength-strong { color: var(--success); }
+/* Gamified Strength Meter Classes */
+.strength-baby { color: #ef4444; }
+.strength-weak { color: #f97316; }
+.strength-medium { color: #eab308; }
+.strength-strong { color: #22c55e; }
+.strength-fortress { color: #10b981; }
+.strength-elite {
+    color: #06b6d4;
+    text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
 
 .vault-controls {
     display: flex;
