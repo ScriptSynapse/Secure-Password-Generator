@@ -40,6 +40,7 @@ VaultX is a browser-based password manager and generator. It helps you securely 
 
     * Default master password: `VaultX123` (set in `config.js`).
     * You can change it after logging in.
+    * Check the website on https://scriptsynapse.github.io/Secure-Password-Generator/
 
 ## ⚙️ Configuration
 
