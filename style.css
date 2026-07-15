@@ -145,6 +145,19 @@ body {
     text-align: center;
 }
 
+.lock-help {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin-bottom: 1rem;
+    text-align: left;
+}
+
+.btn-icon {
+    flex: 0 0 auto;
+    padding: 0.75rem;
+}
+
 /* Main App Styles */
 .container {
     max-width: 1200px;

@@ -1,61 +1,97 @@
 // VaultX Password Manager - Main Application
+
+// ---------------------------------------------------------------------------
+// Crypto helpers: derive an AES-256-GCM key from the master password with
+// PBKDF2, then use it to encrypt/decrypt the vault. The derived key is kept
+// only in memory for the life of the tab; nothing that could reconstruct it
+// (the raw key or the plaintext password) is ever written to storage.
+// ---------------------------------------------------------------------------
+const CryptoUtil = {
+    randomBytes(length) {
+        return crypto.getRandomValues(new Uint8Array(length));
+    },
+
+    bufToB64(buf) {
+        return btoa(String.fromCharCode(...new Uint8Array(buf)));
+    },
+
+    b64ToBuf(b64) {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+    },
+
+    async deriveKey(password, saltBytes, iterations) {
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(password),
+            'PBKDF2',
+            false,
+            ['deriveKey']
+        );
+        return crypto.subtle.deriveKey(
+            { name: 'PBKDF2', salt: saltBytes, iterations, hash: 'SHA-256' },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    },
+
+    async encrypt(key, dataObj) {
+        const iv = this.randomBytes(12);
+        const plaintext = new TextEncoder().encode(JSON.stringify(dataObj));
+        const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
+        return { iv: this.bufToB64(iv), data: this.bufToB64(ciphertext) };
+    },
+
+    async decrypt(key, ivB64, dataB64) {
+        const iv = this.b64ToBuf(ivB64);
+        const ciphertext = this.b64ToBuf(dataB64);
+        const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+        return JSON.parse(new TextDecoder().decode(plaintext));
+    }
+};
+
 class VaultXApp {
     constructor() {
         this.currentEntries = [];
         this.editingIndex = -1;
         this.inactivityTimer = null;
+        this.vaultKey = null; // in-memory only, never persisted
         this.elements = {};
 
         this.init();
     }
 
-    // Initialize the application
     init() {
         this.cacheElements();
-
-        // Check if already unlocked
-        if (sessionStorage.getItem('unlocked') === 'true') {
-            this.showMainApp();
-            this.loadFromStorage();
-            this.resetInactivityTimer();
-
-            // Setup event listeners after showing main app
-            this.setupEventListeners();
-            this.setupImportExport();
-            this.makeGlobalMethods();
-        } else {
-            // Setup basic event listeners for login
-            this.setupAuthEventListeners();
-        }
-
-        // Initialize UI
+        this.setupAuthEventListeners();
         this.updateStrengthMeter();
         setTimeout(() => this.elements.masterInput?.focus(), 100);
     }
 
-    // Setup authentication event listeners (available before login)
     setupAuthEventListeners() {
-        // Authentication events
         this.elements.unlockBtn?.addEventListener('click', () => this.handleUnlock());
         this.elements.setMasterBtn?.addEventListener('click', () => this.handleSetMaster());
         this.elements.masterInput?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.handleUnlock();
         });
+        this.setupPasswordToggle(this.elements.masterInput, this.elements.toggleMasterVisibility);
     }
 
-    // Cache DOM elements
     cacheElements() {
         this.elements = {
-            // Lock screen elements
             lockScreen: document.getElementById('lock-screen'),
             mainContainer: document.getElementById('main-container'),
             masterInput: document.getElementById('master-input'),
+            toggleMasterVisibility: document.getElementById('toggle-master-visibility'),
             unlockBtn: document.getElementById('unlock-btn'),
             setMasterBtn: document.getElementById('set-master-btn'),
             errorMsg: document.getElementById('error-msg'),
             logoutBtn: document.getElementById('logout-btn'),
 
-            // Password generator elements
             lengthSlider: document.getElementById('length-slider'),
             lengthInput: document.getElementById('length-input'),
             lengthValue: document.getElementById('length-value'),
@@ -64,28 +100,25 @@ class VaultXApp {
             numbers: document.getElementById('numbers'),
             symbols: document.getElementById('symbols'),
 
-            // Password output elements
             passwordOutput: document.getElementById('password-output'),
             generateBtn: document.getElementById('generate-btn'),
             copyBtn: document.getElementById('copy-btn'),
             strengthText: document.getElementById('strength-text'),
             strengthFill: document.getElementById('strength-fill'),
 
-            // Vault entry elements
             siteInput: document.getElementById('site-input'),
             usernameInput: document.getElementById('username-input'),
             passwordInput: document.getElementById('password-input'),
+            togglePasswordVisibility: document.getElementById('toggle-password-visibility'),
             notesInput: document.getElementById('notes-input'),
             useGeneratedBtn: document.getElementById('use-generated-btn'),
             saveEntryBtn: document.getElementById('save-entry-btn'),
             clearFormBtn: document.getElementById('clear-form-btn'),
 
-            // Vault management elements
             searchInput: document.getElementById('search-input'),
             vaultList: document.getElementById('vault-list'),
             clearVaultBtn: document.getElementById('clear-vault-btn'),
 
-            // Export/Import elements
             exportBtn: document.getElementById('export-btn'),
             exportDropdown: document.getElementById('export-dropdown'),
             exportJsonBtn: document.getElementById('export-json-btn'),
@@ -95,18 +128,14 @@ class VaultXApp {
             importFile: document.getElementById('import-file'),
             changeMasterBtn: document.getElementById('change-master-btn'),
 
-            // UI elements
             toast: document.getElementById('toast'),
             toastText: document.getElementById('toast-text')
         };
     }
 
-    // Setup all event listeners (called after login)
     setupEventListeners() {
-        // Authentication events (logout)
         this.elements.logoutBtn?.addEventListener('click', () => this.logout());
 
-        // Password generation events
         this.elements.lengthSlider?.addEventListener('input', () => this.handleLengthChange());
         this.elements.lengthInput?.addEventListener('input', () => this.handleLengthInputChange());
 
@@ -116,197 +145,208 @@ class VaultXApp {
         this.elements.generateBtn?.addEventListener('click', () => this.handleGenerate());
         this.elements.copyBtn?.addEventListener('click', () => this.handleCopyPassword());
 
-        // Vault management events
         this.elements.useGeneratedBtn?.addEventListener('click', () => this.handleUseGenerated());
         this.elements.saveEntryBtn?.addEventListener('click', () => this.addOrUpdateEntry());
         this.elements.clearFormBtn?.addEventListener('click', () => this.clearForm());
         this.elements.searchInput?.addEventListener('input', () => this.renderVault());
         this.elements.clearVaultBtn?.addEventListener('click', () => this.handleClearVault());
+        this.setupPasswordToggle(this.elements.passwordInput, this.elements.togglePasswordVisibility);
 
-        // Form submission with Enter key
         [this.elements.siteInput, this.elements.usernameInput, this.elements.passwordInput]
             .forEach(input => input?.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') this.addOrUpdateEntry();
             }));
 
-        // Inactivity tracking
+        // Event delegation for vault item actions (copy/edit/delete). Using
+        // data-index instead of building onclick="...(${value})" strings
+        // avoids ever injecting entry data into inline JS/HTML attributes.
+        this.elements.vaultList?.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            const index = parseInt(btn.dataset.index, 10);
+            const entry = this.currentEntries[index];
+            if (!entry) return;
+
+            switch (btn.dataset.action) {
+                case 'copy-user': this.copyToClipboard(entry.username, 'Username copied'); break;
+                case 'copy-pass': this.copyToClipboard(entry.password, 'Password copied'); break;
+                case 'edit': this.editEntry(index); break;
+                case 'delete': this.deleteEntry(index); break;
+            }
+        });
+
         ['mousemove', 'keypress', 'click', 'scroll'].forEach(event => {
             document.addEventListener(event, () => this.resetInactivityTimer());
         });
     }
 
-    // Setup import/export functionality (called after login)
+    setupPasswordToggle(inputEl, btnEl) {
+        if (!inputEl || !btnEl) return;
+        btnEl.addEventListener('click', () => {
+            const showing = inputEl.type === 'text';
+            inputEl.type = showing ? 'password' : 'text';
+            btnEl.innerHTML = showing ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+            btnEl.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+        });
+    }
+
     setupImportExport() {
-        console.log('Setting up import/export...'); // Debug log
+        this.elements.exportBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.elements.exportDropdown?.classList.toggle('hidden');
+        });
 
-        // Wait a bit to ensure DOM is ready
-        setTimeout(() => {
-            // Re-cache export elements to make sure they exist
-            this.elements.exportBtn = document.getElementById('export-btn');
-            this.elements.exportDropdown = document.getElementById('export-dropdown');
-            this.elements.exportJsonBtn = document.getElementById('export-json-btn');
-            this.elements.exportExcelBtn = document.getElementById('export-excel-btn');
-            this.elements.exportCsvBtn = document.getElementById('export-csv-btn');
-
-            // Check if elements exist
-            if (!this.elements.exportBtn) {
-                console.error('Export button not found!');
-                return;
+        document.addEventListener('click', (e) => {
+            if (this.elements.exportBtn && this.elements.exportDropdown &&
+                !this.elements.exportBtn.contains(e.target) &&
+                !this.elements.exportDropdown.contains(e.target)) {
+                this.elements.exportDropdown.classList.add('hidden');
             }
+        });
 
-            if (!this.elements.exportDropdown) {
-                console.error('Export dropdown not found!');
-                return;
-            }
+        this.elements.exportJsonBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.elements.exportDropdown?.classList.add('hidden');
+            this.handleExport('json');
+        });
+        this.elements.exportExcelBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.elements.exportDropdown?.classList.add('hidden');
+            this.handleExport('excel');
+        });
+        this.elements.exportCsvBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.elements.exportDropdown?.classList.add('hidden');
+            this.handleExport('csv');
+        });
 
-            console.log('Export elements found, setting up listeners...');
-
-            // Dropdown toggle
-            this.elements.exportBtn.addEventListener('click', (e) => {
-                console.log('Export button clicked'); // Debug log
-                e.preventDefault();
-                e.stopPropagation();
-
-                const dropdown = this.elements.exportDropdown;
-                const isHidden = dropdown.classList.contains('hidden');
-                console.log('Dropdown is hidden:', isHidden); // Debug log
-
-                if (isHidden) {
-                    dropdown.classList.remove('hidden');
-                    console.log('Showing dropdown');
-                } else {
-                    dropdown.classList.add('hidden');
-                    console.log('Hiding dropdown');
-                }
-            });
-
-            // Close dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!this.elements.exportBtn.contains(e.target) &&
-                    !this.elements.exportDropdown.contains(e.target)) {
-                    this.elements.exportDropdown.classList.add('hidden');
-                }
-            });
-
-            // Export options
-            if (this.elements.exportJsonBtn) {
-                this.elements.exportJsonBtn.addEventListener('click', (e) => {
-                    console.log('JSON export clicked'); // Debug log
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.elements.exportDropdown.classList.add('hidden');
-                    this.handleExport('json');
-                });
-            }
-
-            if (this.elements.exportExcelBtn) {
-                this.elements.exportExcelBtn.addEventListener('click', (e) => {
-                    console.log('Excel export clicked'); // Debug log
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.elements.exportDropdown.classList.add('hidden');
-                    this.handleExport('excel');
-                });
-            }
-
-            if (this.elements.exportCsvBtn) {
-                this.elements.exportCsvBtn.addEventListener('click', (e) => {
-                    console.log('CSV export clicked'); // Debug log
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.elements.exportDropdown.classList.add('hidden');
-                    this.handleExport('csv');
-                });
-            }
-
-            // Import functionality
-            if (this.elements.importBtn) {
-                this.elements.importBtn.addEventListener('click', () => {
-                    console.log('Import button clicked'); // Debug log
-                    this.elements.importFile?.click();
-                });
-            }
-
-            if (this.elements.importFile) {
-                this.elements.importFile.addEventListener('change', (e) => {
-                    console.log('Import file selected'); // Debug log
-                    this.handleImport(e);
-                });
-            }
-
-            if (this.elements.changeMasterBtn) {
-                this.elements.changeMasterBtn.addEventListener('click', () => this.handleChangeMaster());
-            }
-
-            console.log('Import/export setup complete'); // Debug log
-        }, 100);
+        this.elements.importBtn?.addEventListener('click', () => this.elements.importFile?.click());
+        this.elements.importFile?.addEventListener('change', (e) => this.handleImport(e));
+        this.elements.changeMasterBtn?.addEventListener('click', () => this.handleChangeMaster());
     }
 
-    // Make methods available globally for onclick handlers
-    makeGlobalMethods() {
-        window.vaultApp = {
-            editEntry: (index) => this.editEntry(index),
-            deleteEntry: (index) => this.deleteEntry(index),
-            copyToClipboard: (text, message) => this.copyToClipboard(text, message)
-        };
-    }
+    // -------------------------------------------------------------------
+    // Authentication / encryption
+    // -------------------------------------------------------------------
+    async handleUnlock() {
+        const password = this.elements.masterInput?.value || '';
+        const authRaw = sessionStorage.getItem(CONFIG.AUTH_KEY);
+        const vaultRaw = sessionStorage.getItem(CONFIG.STORAGE_KEY);
 
-    // Authentication methods
-    handleUnlock() {
-        const inputPassword = this.elements.masterInput?.value;
-        if (inputPassword === this.getMasterPassword()) {
-            sessionStorage.setItem('unlocked', 'true');
-            this.showMainApp();
+        if (!authRaw || !vaultRaw) {
+            this.elements.errorMsg.textContent = 'No master password has been set yet. Click "Set Master" to create one.';
+            return;
+        }
+        if (!password) {
+            this.elements.errorMsg.textContent = 'Please enter your master password.';
+            return;
+        }
+
+        try {
+            const auth = JSON.parse(authRaw);
+            const vaultBlob = JSON.parse(vaultRaw);
+            const salt = CryptoUtil.b64ToBuf(auth.salt);
+            const key = await CryptoUtil.deriveKey(password, salt, auth.iterations);
+            const entries = await CryptoUtil.decrypt(key, vaultBlob.iv, vaultBlob.data);
+
+            this.vaultKey = key;
+            this.currentEntries = Array.isArray(entries) ? entries : [];
             this.elements.errorMsg.textContent = '';
-            this.loadFromStorage();
-            this.resetInactivityTimer();
+            this.elements.masterInput.value = '';
 
-            // Setup all event listeners after successful login
+            this.showMainApp();
+            this.renderVault();
+            this.resetInactivityTimer();
             this.setupEventListeners();
             this.setupImportExport();
-            this.makeGlobalMethods();
-
-            this.handleGenerate(); // Generate initial password
-        } else {
+            this.handleGenerate();
+        } catch (err) {
+            // AES-GCM authentication fails if the wrong key was derived,
+            // i.e. the wrong password was entered.
             this.elements.errorMsg.textContent = 'Incorrect master password!';
             this.elements.masterInput.value = '';
             this.elements.masterInput?.focus();
         }
     }
 
-    handleSetMaster() {
-        const newPassword = prompt('Enter new master password (minimum 8 characters):');
-        if (newPassword && newPassword.length >= 8) {
-            this.setMasterPassword(newPassword);
-            this.showToast('Master password updated');
-            this.elements.errorMsg.textContent = '';
-        } else if (newPassword !== null) {
-            alert('Password must be at least 8 characters long');
+    async handleSetMaster() {
+        const alreadySetUp = !!sessionStorage.getItem(CONFIG.AUTH_KEY);
+        if (alreadySetUp) {
+            const proceed = confirm(
+                'A vault already exists for this session. Creating a new master password ' +
+                'will permanently erase it, since it cannot be re-encrypted without the old ' +
+                'password. If you just want to change your password, unlock first and use ' +
+                '"Change Master" instead.\n\nErase and start a new vault?'
+            );
+            if (!proceed) return;
         }
+
+        const newPassword = prompt('Create a master password (minimum 8 characters):');
+        if (newPassword === null) return;
+        if (newPassword.length < 8) {
+            alert('Password must be at least 8 characters long.');
+            return;
+        }
+
+        const salt = CryptoUtil.randomBytes(16);
+        const key = await CryptoUtil.deriveKey(newPassword, salt, CONFIG.PBKDF2_ITERATIONS);
+        const encryptedEmpty = await CryptoUtil.encrypt(key, []);
+
+        sessionStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({
+            salt: CryptoUtil.bufToB64(salt),
+            iterations: CONFIG.PBKDF2_ITERATIONS
+        }));
+        sessionStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(encryptedEmpty));
+
+        this.vaultKey = key;
+        this.currentEntries = [];
+        this.elements.errorMsg.textContent = '';
+        this.elements.masterInput.value = '';
+
+        this.showMainApp();
+        this.renderVault();
+        this.resetInactivityTimer();
+        this.setupEventListeners();
+        this.setupImportExport();
+        this.handleGenerate();
+        this.showToast('Master password created — vault unlocked');
     }
 
-    handleChangeMaster() {
-        const currentPassword = prompt('Enter current master password:');
-        if (currentPassword !== this.getMasterPassword()) {
+    async handleChangeMaster() {
+        const currentPassword = prompt('Enter your current master password:');
+        if (currentPassword === null) return;
+
+        try {
+            const auth = JSON.parse(sessionStorage.getItem(CONFIG.AUTH_KEY));
+            const vaultBlob = JSON.parse(sessionStorage.getItem(CONFIG.STORAGE_KEY));
+            const salt = CryptoUtil.b64ToBuf(auth.salt);
+            const verifyKey = await CryptoUtil.deriveKey(currentPassword, salt, auth.iterations);
+            await CryptoUtil.decrypt(verifyKey, vaultBlob.iv, vaultBlob.data); // throws if wrong password
+        } catch (err) {
             this.showToast('Incorrect current password', 'error');
             return;
         }
 
         const newPassword = prompt('Enter new master password (minimum 8 characters):');
-        if (newPassword && newPassword.length >= 8) {
-            this.setMasterPassword(newPassword);
-            this.showToast('Master password changed successfully');
-        } else if (newPassword !== null) {
+        if (newPassword === null) return;
+        if (newPassword.length < 8) {
             this.showToast('Password must be at least 8 characters long', 'error');
+            return;
         }
-    }
 
-    getMasterPassword() {
-        return sessionStorage.getItem('masterPassword') || CONFIG.MASTER_PASSWORD;
-    }
+        const newSalt = CryptoUtil.randomBytes(16);
+        const newKey = await CryptoUtil.deriveKey(newPassword, newSalt, CONFIG.PBKDF2_ITERATIONS);
+        const encrypted = await CryptoUtil.encrypt(newKey, this.currentEntries);
 
-    setMasterPassword(password) {
-        sessionStorage.setItem('masterPassword', password);
+        sessionStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({
+            salt: CryptoUtil.bufToB64(newSalt),
+            iterations: CONFIG.PBKDF2_ITERATIONS
+        }));
+        sessionStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(encrypted));
+
+        this.vaultKey = newKey;
+        this.showToast('Master password changed successfully');
     }
 
     showMainApp() {
@@ -315,7 +355,12 @@ class VaultXApp {
     }
 
     logout() {
-        sessionStorage.clear();
+        // Locks the screen and drops the in-memory key. The encrypted vault
+        // stays in sessionStorage so the same master password unlocks it
+        // again later in this tab — only the browser session boundary
+        // (tab/browser close) wipes the data itself.
+        this.vaultKey = null;
+        this.currentEntries = [];
         this.elements.lockScreen?.classList.remove('hidden');
         this.elements.mainContainer?.classList.add('hidden');
         this.elements.masterInput.value = '';
@@ -324,14 +369,17 @@ class VaultXApp {
     }
 
     resetInactivityTimer() {
+        if (!this.vaultKey) return;
         clearTimeout(this.inactivityTimer);
         this.inactivityTimer = setTimeout(() => {
             this.logout();
-            this.showToast('Session expired due to inactivity', 'warning');
+            this.showToast('Session locked due to inactivity', 'warning');
         }, CONFIG.AUTO_LOGOUT_TIME);
     }
 
-    // Password generation methods
+    // -------------------------------------------------------------------
+    // Password generation
+    // -------------------------------------------------------------------
     handleLengthChange() {
         const value = this.elements.lengthSlider?.value;
         this.elements.lengthValue.textContent = value;
@@ -376,12 +424,15 @@ class VaultXApp {
             chars = CHARSETS.lowercase;
         }
 
+        // Rejection sampling avoids modulo bias from crypto.getRandomValues.
+        const maxValid = Math.floor(256 / chars.length) * chars.length;
+        const bytes = new Uint8Array(1);
         let password = '';
-        const array = new Uint32Array(length);
-        crypto.getRandomValues(array);
-
-        for (let i = 0; i < length; i++) {
-            password += chars.charAt(array[i] % chars.length);
+        while (password.length < length) {
+            crypto.getRandomValues(bytes);
+            if (bytes[0] < maxValid) {
+                password += chars.charAt(bytes[0] % chars.length);
+            }
         }
 
         return password;
@@ -396,27 +447,36 @@ class VaultXApp {
         if (this.elements.numbers?.checked) complexity += 10;
         if (this.elements.symbols?.checked) complexity += 32;
 
-        const entropy = Math.log2(complexity) * length;
+        const entropy = complexity > 0 ? Math.log2(complexity) * length : 0;
 
-        if (entropy < 40) return { label: "Very Weak 🔴", percentage: 20, class: "strength-weak" };
-        if (entropy < 60) return { label: "Weak 🟠", percentage: 40, class: "strength-weak" };
-        if (entropy < 80) return { label: "Medium 🟡", percentage: 60, class: "strength-medium" };
-        if (entropy < 100) return { label: "Strong 🟢", percentage: 80, class: "strength-strong" };
-        return { label: "Very Strong 🔥", percentage: 100, class: "strength-strong" };
+        if (entropy < 28) return { label: 'Very Weak', percentage: 15, class: 'strength-baby' };
+        if (entropy < 40) return { label: 'Weak', percentage: 30, class: 'strength-weak' };
+        if (entropy < 60) return { label: 'Fair', percentage: 50, class: 'strength-medium' };
+        if (entropy < 80) return { label: 'Strong', percentage: 70, class: 'strength-strong' };
+        if (entropy < 100) return { label: 'Very Strong', percentage: 85, class: 'strength-fortress' };
+        return { label: 'Excellent', percentage: 100, class: 'strength-elite' };
     }
 
     updateStrengthMeter() {
         const strength = this.calculateStrength();
+        const colors = {
+            'strength-baby': '#ef4444',
+            'strength-weak': '#f97316',
+            'strength-medium': '#eab308',
+            'strength-strong': '#22c55e',
+            'strength-fortress': '#10b981',
+            'strength-elite': '#06b6d4'
+        };
+
         this.elements.strengthText.textContent = strength.label;
         this.elements.strengthText.className = `strength-value ${strength.class}`;
         this.elements.strengthFill.style.width = `${strength.percentage}%`;
-
-        let color = strength.class === 'strength-weak' ? 'var(--danger)' :
-            strength.class === 'strength-medium' ? 'var(--warning)' : 'var(--success)';
-        this.elements.strengthFill.style.backgroundColor = color;
+        this.elements.strengthFill.style.backgroundColor = colors[strength.class];
     }
 
-    // Vault management methods
+    // -------------------------------------------------------------------
+    // Vault management
+    // -------------------------------------------------------------------
     handleUseGenerated() {
         if (this.elements.passwordOutput?.value) {
             this.elements.passwordInput.value = this.elements.passwordOutput.value;
@@ -426,7 +486,7 @@ class VaultXApp {
         }
     }
 
-    addOrUpdateEntry() {
+    async addOrUpdateEntry() {
         const site = this.elements.siteInput?.value.trim();
         const username = this.elements.usernameInput?.value.trim();
         const password = this.elements.passwordInput?.value.trim();
@@ -457,7 +517,7 @@ class VaultXApp {
             this.showToast('Entry added successfully');
         }
 
-        this.saveToStorage();
+        await this.saveToStorage();
         this.renderVault();
         this.clearForm();
     }
@@ -472,25 +532,24 @@ class VaultXApp {
         this.editingIndex = index;
         this.elements.saveEntryBtn.innerHTML = '<i class="fas fa-save"></i> Update Entry';
 
-        // Scroll to form
         this.elements.siteInput?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         this.elements.siteInput?.focus();
     }
 
-    deleteEntry(index) {
+    async deleteEntry(index) {
         if (confirm('Are you sure you want to delete this entry?')) {
             this.currentEntries.splice(index, 1);
-            this.saveToStorage();
+            await this.saveToStorage();
             this.renderVault();
             this.showToast('Entry deleted');
         }
     }
 
-    handleClearVault() {
+    async handleClearVault() {
         if (this.currentEntries.length > 0 &&
             confirm('Are you sure you want to clear all vault entries? This cannot be undone.')) {
             this.currentEntries = [];
-            this.saveToStorage();
+            await this.saveToStorage();
             this.renderVault();
             this.showToast('Vault cleared');
         }
@@ -505,32 +564,22 @@ class VaultXApp {
         this.elements.saveEntryBtn.innerHTML = '<i class="fas fa-save"></i> Save Entry';
     }
 
-    // Storage methods
-    saveToStorage() {
+    // -------------------------------------------------------------------
+    // Storage (AES-256-GCM encrypted at rest, session-scoped)
+    // -------------------------------------------------------------------
+    async saveToStorage() {
+        if (!this.vaultKey) return;
         try {
-            const encrypted = btoa(JSON.stringify(this.currentEntries));
-            sessionStorage.setItem(CONFIG.STORAGE_KEY, encrypted);
+            const encrypted = await CryptoUtil.encrypt(this.vaultKey, this.currentEntries);
+            sessionStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(encrypted));
         } catch (error) {
             this.showToast('Failed to save vault data', 'error');
         }
     }
 
-    loadFromStorage() {
-        try {
-            const encrypted = sessionStorage.getItem(CONFIG.STORAGE_KEY);
-            if (encrypted) {
-                this.currentEntries = JSON.parse(atob(encrypted));
-            } else {
-                this.currentEntries = [];
-            }
-            this.renderVault();
-        } catch (error) {
-            this.currentEntries = [];
-            this.showToast('Failed to load vault data', 'error');
-        }
-    }
-
+    // -------------------------------------------------------------------
     // Vault rendering
+    // -------------------------------------------------------------------
     renderVault() {
         const searchTerm = this.elements.searchInput?.value.toLowerCase() || '';
         const filteredEntries = this.currentEntries.filter(entry =>
@@ -551,7 +600,11 @@ class VaultXApp {
             return;
         }
 
-        this.elements.vaultList.innerHTML = filteredEntries.map((entry, index) => {
+        // Entry values are only ever placed as escaped text content or as
+        // numeric data-index attributes — never interpolated into inline
+        // JS handlers — so a site/username/note containing quotes or angle
+        // brackets can't break out of the markup.
+        this.elements.vaultList.innerHTML = filteredEntries.map((entry) => {
             const originalIndex = this.currentEntries.indexOf(entry);
             return `
                 <div class="vault-item">
@@ -559,16 +612,16 @@ class VaultXApp {
                     <div class="vault-username">${this.escapeHtml(entry.username)}</div>
                     ${entry.notes ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">${this.escapeHtml(entry.notes)}</div>` : ''}
                     <div class="vault-actions">
-                        <button class="btn btn-secondary btn-small" onclick="vaultApp.copyToClipboard('${this.escapeHtml(entry.username)}', 'Username copied')">
+                        <button class="btn btn-secondary btn-small" data-action="copy-user" data-index="${originalIndex}">
                             <i class="fas fa-user"></i> Copy User
                         </button>
-                        <button class="btn btn-secondary btn-small" onclick="vaultApp.copyToClipboard('${this.escapeHtml(entry.password)}', 'Password copied')">
+                        <button class="btn btn-secondary btn-small" data-action="copy-pass" data-index="${originalIndex}">
                             <i class="fas fa-key"></i> Copy Pass
                         </button>
-                        <button class="btn btn-secondary btn-small" onclick="vaultApp.editEntry(${originalIndex})">
+                        <button class="btn btn-secondary btn-small" data-action="edit" data-index="${originalIndex}">
                             <i class="fas fa-edit"></i> Edit
                         </button>
-                        <button class="btn btn-secondary btn-small" onclick="vaultApp.deleteEntry(${originalIndex})">
+                        <button class="btn btn-secondary btn-small" data-action="delete" data-index="${originalIndex}">
                             <i class="fas fa-trash"></i> Delete
                         </button>
                     </div>
@@ -577,10 +630,10 @@ class VaultXApp {
         }).join('');
     }
 
-    // Import/Export methods
+    // -------------------------------------------------------------------
+    // Import / Export
+    // -------------------------------------------------------------------
     handleExport(format = 'json') {
-        console.log('HandleExport called with format:', format); // Debug log
-
         if (this.currentEntries.length === 0) {
             this.showToast('No entries to export', 'warning');
             return;
@@ -591,31 +644,16 @@ class VaultXApp {
 
         try {
             switch (format) {
-                case 'json':
-                    console.log('Exporting as JSON'); // Debug log
-                    this.exportAsJson(filename);
-                    break;
-                case 'excel':
-                    console.log('Exporting as Excel'); // Debug log
-                    this.exportAsExcel(filename);
-                    break;
-                case 'csv':
-                    console.log('Exporting as CSV'); // Debug log
-                    this.exportAsCsv(filename);
-                    break;
-                default:
-                    console.log('Default export as JSON'); // Debug log
-                    this.exportAsJson(filename);
+                case 'excel': this.exportAsExcel(filename); break;
+                case 'csv': this.exportAsCsv(filename); break;
+                default: this.exportAsJson(filename);
             }
         } catch (error) {
-            console.error('Export error:', error);
             this.showToast('Export failed: ' + error.message, 'error');
         }
     }
 
     exportAsJson(filename) {
-        console.log('Exporting JSON with filename:', filename); // Debug log
-
         const exportData = {
             version: CONFIG.VERSION,
             exported: new Date().toISOString(),
@@ -624,21 +662,16 @@ class VaultXApp {
 
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
         this.downloadFile(blob, `${filename}.json`);
-        this.showToast('JSON export completed successfully');
+        this.showToast('JSON export completed — this file is unencrypted, store it somewhere safe');
     }
 
     exportAsExcel(filename) {
-        console.log('Exporting Excel with filename:', filename); // Debug log
-
         try {
-            // Check if XLSX is available
             if (typeof XLSX === 'undefined') {
-                console.error('XLSX library not loaded');
                 this.showToast('Excel export unavailable - XLSX library not loaded', 'error');
                 return;
             }
 
-            // Prepare data for Excel
             const worksheetData = [
                 ['Site/App', 'Username/Email', 'Password', 'Notes', 'Created', 'Last Updated']
             ];
@@ -654,24 +687,13 @@ class VaultXApp {
                 ]);
             });
 
-            // Create workbook and worksheet
             const workbook = XLSX.utils.book_new();
             const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-
-            // Set column widths
             worksheet['!cols'] = [
-                { wch: 20 }, // Site/App
-                { wch: 25 }, // Username/Email
-                { wch: 20 }, // Password
-                { wch: 30 }, // Notes
-                { wch: 12 }, // Created
-                { wch: 12 }  // Updated
+                { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 30 }, { wch: 12 }, { wch: 12 }
             ];
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'VaultX Passwords');
 
-            // Add worksheet to workbook
-            XLSX.utils.book_append_sheet(workbook, worksheet, "VaultX Passwords");
-
-            // Add metadata sheet
             const metaData = [
                 ['VaultX Password Export'],
                 [''],
@@ -680,48 +702,31 @@ class VaultXApp {
                 ['Version:', CONFIG.VERSION],
                 [''],
                 ['Security Notice:'],
-                ['This file contains sensitive password information.'],
-                ['Please store it in a secure location and delete when no longer needed.']
+                ['This file contains sensitive password information in plain text.'],
+                ['Please store it in a secure location and delete it when no longer needed.']
             ];
-
             const metaWorksheet = XLSX.utils.aoa_to_sheet(metaData);
             metaWorksheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
+            XLSX.utils.book_append_sheet(workbook, metaWorksheet, 'Export Info');
 
-            XLSX.utils.book_append_sheet(workbook, metaWorksheet, "Export Info");
-
-            // Generate and download Excel file
             const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([excelBuffer], {
                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             });
 
             this.downloadFile(blob, `${filename}.xlsx`);
-            this.showToast('Excel export completed successfully');
-
+            this.showToast('Excel export completed — this file is unencrypted, store it somewhere safe');
         } catch (error) {
-            console.error('Excel export error:', error);
             this.showToast('Failed to export Excel file: ' + error.message, 'error');
         }
     }
 
     exportAsCsv(filename) {
-        console.log('Exporting CSV with filename:', filename); // Debug log
-
         try {
-            // Prepare CSV data
-            const csvData = [];
+            const csvData = [
+                ['Site/App', 'Username/Email', 'Password', 'Notes', 'Created Date', 'Last Updated']
+            ];
 
-            // Add header row
-            csvData.push([
-                'Site/App',
-                'Username/Email',
-                'Password',
-                'Notes',
-                'Created Date',
-                'Last Updated'
-            ]);
-
-            // Add data rows
             this.currentEntries.forEach(entry => {
                 csvData.push([
                     this.escapeCsvField(entry.site || ''),
@@ -733,26 +738,19 @@ class VaultXApp {
                 ]);
             });
 
-            // Convert to CSV string
             const csvString = csvData.map(row => row.join(',')).join('\n');
-
-            // Add BOM for proper UTF-8 encoding in Excel
             const BOM = '\uFEFF';
             const blob = new Blob([BOM + csvString], { type: 'text/csv;charset=utf-8;' });
 
             this.downloadFile(blob, `${filename}.csv`);
-            this.showToast('CSV export completed successfully');
-
+            this.showToast('CSV export completed — this file is unencrypted, store it somewhere safe');
         } catch (error) {
-            console.error('CSV export error:', error);
             this.showToast('Failed to export CSV file: ' + error.message, 'error');
         }
     }
 
     escapeCsvField(field) {
-        // Escape CSV fields that contain commas, quotes, or newlines
         if (typeof field !== 'string') field = String(field);
-
         if (field.includes('"') || field.includes(',') || field.includes('\n')) {
             return `"${field.replace(/"/g, '""')}"`;
         }
@@ -760,8 +758,6 @@ class VaultXApp {
     }
 
     downloadFile(blob, filename) {
-        console.log('Downloading file:', filename); // Debug log
-
         try {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -772,9 +768,7 @@ class VaultXApp {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            console.log('Download initiated successfully'); // Debug log
         } catch (error) {
-            console.error('Download error:', error);
             this.showToast('Download failed: ' + error.message, 'error');
         }
     }
@@ -784,22 +778,13 @@ class VaultXApp {
         if (!file) return;
 
         const fileExtension = file.name.split('.').pop().toLowerCase();
-
         switch (fileExtension) {
-            case 'json':
-                this.importFromJson(file);
-                break;
+            case 'json': this.importFromJson(file); break;
             case 'xlsx':
-            case 'xls':
-                this.importFromExcel(file);
-                break;
-            case 'csv':
-                this.importFromCsv(file);
-                break;
-            default:
-                this.showToast('Unsupported file format. Please use JSON, Excel, or CSV files.', 'error');
+            case 'xls': this.importFromExcel(file); break;
+            case 'csv': this.importFromCsv(file); break;
+            default: this.showToast('Unsupported file format. Please use JSON, Excel, or CSV files.', 'error');
         }
-
         event.target.value = '';
     }
 
@@ -827,12 +812,8 @@ class VaultXApp {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
 
-                // Try to find the passwords sheet
                 let sheetName = 'VaultX Passwords';
-                if (!workbook.Sheets[sheetName]) {
-                    // Fallback to first sheet
-                    sheetName = workbook.SheetNames[0];
-                }
+                if (!workbook.Sheets[sheetName]) sheetName = workbook.SheetNames[0];
 
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
@@ -842,11 +823,7 @@ class VaultXApp {
                     return;
                 }
 
-                // Parse the Excel data
-                const entries = [];
                 const headers = jsonData[0];
-
-                // Find column indices
                 const siteIndex = this.findColumnIndex(headers, ['site', 'app', 'website', 'url']);
                 const usernameIndex = this.findColumnIndex(headers, ['username', 'email', 'user', 'login']);
                 const passwordIndex = this.findColumnIndex(headers, ['password', 'pass', 'pwd']);
@@ -857,7 +834,7 @@ class VaultXApp {
                     return;
                 }
 
-                // Process data rows
+                const entries = [];
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
                     if (row[siteIndex] && row[usernameIndex] && row[passwordIndex]) {
@@ -873,9 +850,7 @@ class VaultXApp {
                 }
 
                 this.mergeImportedEntries(entries, 'Excel');
-
             } catch (error) {
-                console.error('Excel import error:', error);
                 this.showToast('Failed to parse Excel file', 'error');
             }
         };
@@ -894,10 +869,7 @@ class VaultXApp {
                     return;
                 }
 
-                // Parse CSV headers
                 const headers = this.parseCsvLine(lines[0]).map(h => h.toLowerCase().trim());
-
-                // Find column indices
                 const siteIndex = this.findColumnIndex(headers, ['site', 'app', 'website', 'url']);
                 const usernameIndex = this.findColumnIndex(headers, ['username', 'email', 'user', 'login']);
                 const passwordIndex = this.findColumnIndex(headers, ['password', 'pass', 'pwd']);
@@ -908,7 +880,6 @@ class VaultXApp {
                     return;
                 }
 
-                // Process data rows
                 const entries = [];
                 for (let i = 1; i < lines.length; i++) {
                     const row = this.parseCsvLine(lines[i]);
@@ -925,9 +896,7 @@ class VaultXApp {
                 }
 
                 this.mergeImportedEntries(entries, 'CSV');
-
             } catch (error) {
-                console.error('CSV import error:', error);
                 this.showToast('Failed to parse CSV file', 'error');
             }
         };
@@ -936,9 +905,7 @@ class VaultXApp {
 
     findColumnIndex(headers, possibleNames) {
         for (let name of possibleNames) {
-            const index = headers.findIndex(header =>
-                header.toLowerCase().includes(name.toLowerCase())
-            );
+            const index = headers.findIndex(header => header.toLowerCase().includes(name.toLowerCase()));
             if (index !== -1) return index;
         }
         return -1;
@@ -951,11 +918,10 @@ class VaultXApp {
 
         for (let i = 0; i < line.length; i++) {
             const char = line[i];
-
             if (char === '"') {
                 if (inQuotes && line[i + 1] === '"') {
                     current += '"';
-                    i++; // Skip next quote
+                    i++;
                 } else {
                     inQuotes = !inQuotes;
                 }
@@ -966,12 +932,11 @@ class VaultXApp {
                 current += char;
             }
         }
-
         result.push(current);
         return result;
     }
 
-    mergeImportedEntries(importedEntries, format) {
+    async mergeImportedEntries(importedEntries, format) {
         if (!Array.isArray(importedEntries) || importedEntries.length === 0) {
             this.showToast(`No valid entries found in ${format} file`, 'error');
             return;
@@ -983,7 +948,6 @@ class VaultXApp {
             }
         }
 
-        // Merge entries, avoiding duplicates
         let importedCount = 0;
         importedEntries.forEach(entry => {
             const exists = this.currentEntries.some(existing =>
@@ -997,24 +961,22 @@ class VaultXApp {
             }
         });
 
-        this.saveToStorage();
+        await this.saveToStorage();
         this.renderVault();
 
         const skippedCount = importedEntries.length - importedCount;
         let message = `Successfully imported ${importedCount} entries from ${format}`;
-        if (skippedCount > 0) {
-            message += ` (${skippedCount} duplicates skipped)`;
-        }
-
+        if (skippedCount > 0) message += ` (${skippedCount} duplicates skipped)`;
         this.showToast(message);
     }
 
-    // Utility methods
+    // -------------------------------------------------------------------
+    // Utilities
+    // -------------------------------------------------------------------
     copyToClipboard(text, message = 'Copied to clipboard') {
         navigator.clipboard.writeText(text).then(() => {
             this.showToast(message);
         }).catch(() => {
-            // Fallback for older browsers
             const textArea = document.createElement('textarea');
             textArea.value = text;
             document.body.appendChild(textArea);
@@ -1040,7 +1002,6 @@ class VaultXApp {
     }
 }
 
-// Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new VaultXApp();
 });
