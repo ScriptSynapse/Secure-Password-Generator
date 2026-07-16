@@ -3,18 +3,38 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>🔐VaultX — Secure Password Manager</title>
+    <title>VaultX — Secure Password Manager</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <!-- Lock Screen -->
 <div id="lock-screen" class="lock-screen">
-    <div class="logo">🔐VaultX</div>
+    <div class="brand brand--hero">
+        <span class="dial-wrap dial-wrap--lg">
+            <svg class="dial-mark" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle class="dial-ring" cx="32" cy="32" r="27"/>
+                <g class="dial-ticks">
+                    <line x1="32" y1="7" x2="32" y2="13"/>
+                    <line x1="32" y1="51" x2="32" y2="57"/>
+                    <line x1="7" y1="32" x2="13" y2="32"/>
+                    <line x1="51" y1="32" x2="57" y2="32"/>
+                    <line x1="14.9" y1="14.9" x2="19.2" y2="19.2"/>
+                    <line x1="44.8" y1="44.8" x2="49.1" y2="49.1"/>
+                    <line x1="14.9" y1="49.1" x2="19.2" y2="44.8"/>
+                    <line x1="44.8" y1="19.2" x2="49.1" y2="14.9"/>
+                </g>
+                <line class="dial-pointer" x1="32" y1="32" x2="32" y2="15" transform="rotate(35 32 32)"/>
+                <circle class="dial-hub" cx="32" cy="32" r="5"/>
+            </svg>
+        </span>
+        <span class="logo-word">Vault<span class="logo-word-accent">X</span></span>
+    </div>
     <p class="subtitle">Secure Password Manager</p>
     <div class="lock-form">
-        <p class="lock-help">First time here? Click <strong>Set Master</strong> to create a password for this vault. Set one up already this session? Enter it below and click <strong>Unlock</strong>.</p>
+        <p class="lock-help">First time on this device? Click <strong>Set Master</strong> to create a password for your vault. Already set one up? Enter it below and click <strong>Unlock</strong>.</p>
         <div class="input-group">
             <input type="password" id="master-input" class="form-input" placeholder="Enter master password" autocomplete="current-password">
             <button type="button" id="toggle-master-visibility" class="btn btn-secondary btn-icon" aria-label="Show password">
@@ -31,16 +51,36 @@
         </div>
         <div id="error-msg" class="error-msg"></div>
     </div>
+    <p class="lock-footnote"><i class="fas fa-microchip"></i> Encrypted on this device with AES-256 — nothing ever leaves your browser.</p>
 </div>
 
 <!-- Main App -->
 <div id="main-container" class="container hidden">
     <header class="header">
-        <h1>🔐VaultX</h1>
-        <p>Your passwords, secured with military-grade encryption</p>
+        <div class="brand brand--compact">
+            <span class="dial-wrap dial-wrap--sm">
+                <svg class="dial-mark" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle class="dial-ring" cx="32" cy="32" r="27"/>
+                    <g class="dial-ticks">
+                        <line x1="32" y1="7" x2="32" y2="13"/>
+                        <line x1="32" y1="51" x2="32" y2="57"/>
+                        <line x1="7" y1="32" x2="13" y2="32"/>
+                        <line x1="51" y1="32" x2="57" y2="32"/>
+                        <line x1="14.9" y1="14.9" x2="19.2" y2="19.2"/>
+                        <line x1="44.8" y1="44.8" x2="49.1" y2="49.1"/>
+                        <line x1="14.9" y1="49.1" x2="19.2" y2="44.8"/>
+                        <line x1="44.8" y1="19.2" x2="49.1" y2="14.9"/>
+                    </g>
+                    <line class="dial-pointer" x1="32" y1="32" x2="32" y2="15" transform="rotate(35 32 32)"/>
+                    <circle class="dial-hub" cx="32" cy="32" r="5"/>
+                </svg>
+            </span>
+            <h1>Vault<span class="logo-word-accent">X</span></h1>
+        </div>
+        <p>Your passwords, encrypted on this device — never in the cloud</p>
         <div class="header-actions">
             <button id="logout-btn" class="btn btn-secondary">
-                <i class="fas fa-sign-out-alt"></i> Logout
+                <i class="fas fa-lock"></i> Lock
             </button>
             <div class="dropdown">
                 <button id="export-btn" class="btn btn-secondary dropdown-toggle">
@@ -118,8 +158,8 @@
                 </div>
             </div>
 
-            <div class="card-header">
-                <h1 class="card-title">Add Entry</h1>
+            <div class="card-header card-header--divider">
+                <h2 class="card-title">Add Entry</h2>
             </div>
             <div class="card-content">
                 <div class="form-group">
@@ -164,7 +204,7 @@
                 <textarea id="password-output" class="password-output" readonly placeholder="Click Generate to create a password"></textarea>
                 <div class="button-group" style="margin-top: 0.5rem;">
                     <button id="generate-btn" class="btn btn-primary">
-                        <i class="fas fa-dice"></i> Generate
+                        <i class="fas fa-shuffle"></i> Generate
                     </button>
                     <button id="copy-btn" class="btn btn-secondary">
                         <i class="fas fa-copy"></i> Copy
@@ -184,7 +224,7 @@
                 </div>
             </div>
 
-            <div class="card-header">
+            <div class="card-header card-header--divider">
                 <h2 class="card-title">Your Vault</h2>
             </div>
             <div class="card-content">
@@ -196,9 +236,9 @@
                 </div>
                 <div id="vault-list" class="vault-list">
                     <div class="empty-state">
-                        <i class="fas fa-lock" style="font-size: 2rem; margin-bottom: 1rem; color: var(--text-secondary);"></i>
+                        <i class="fas fa-shield-halved"></i>
                         <p>Your vault is empty</p>
-                        <p style="font-size: 0.875rem; margin-top: 0.5rem;">Add your first password entry above</p>
+                        <p class="empty-state-sub">Add your first password entry above</p>
                     </div>
                 </div>
             </div>
