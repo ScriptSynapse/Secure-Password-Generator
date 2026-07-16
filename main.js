@@ -2,9 +2,10 @@
 
 // ---------------------------------------------------------------------------
 // Crypto helpers: derive an AES-256-GCM key from the master password with
-// PBKDF2, then use it to encrypt/decrypt the vault. The derived key is kept
-// only in memory for the life of the tab; nothing that could reconstruct it
-// (the raw key or the plaintext password) is ever written to storage.
+// PBKDF2, then use it to encrypt/decrypt the vault. The derived key only
+// ever lives in memory — nothing that could reconstruct it (the raw key or
+// the plaintext password) is ever written to storage. The encrypted vault
+// itself persists in localStorage across browser restarts.
 // ---------------------------------------------------------------------------
 const CryptoUtil = {
     randomBytes(length) {
@@ -231,8 +232,8 @@ class VaultXApp {
     // -------------------------------------------------------------------
     async handleUnlock() {
         const password = this.elements.masterInput?.value || '';
-        const authRaw = sessionStorage.getItem(CONFIG.AUTH_KEY);
-        const vaultRaw = sessionStorage.getItem(CONFIG.STORAGE_KEY);
+        const authRaw = localStorage.getItem(CONFIG.AUTH_KEY);
+        const vaultRaw = localStorage.getItem(CONFIG.STORAGE_KEY);
 
         if (!authRaw || !vaultRaw) {
             this.elements.errorMsg.textContent = 'No master password has been set yet. Click "Set Master" to create one.';
@@ -271,10 +272,10 @@ class VaultXApp {
     }
 
     async handleSetMaster() {
-        const alreadySetUp = !!sessionStorage.getItem(CONFIG.AUTH_KEY);
+        const alreadySetUp = !!localStorage.getItem(CONFIG.AUTH_KEY);
         if (alreadySetUp) {
             const proceed = confirm(
-                'A vault already exists for this session. Creating a new master password ' +
+                'A vault already exists on this device. Creating a new master password ' +
                 'will permanently erase it, since it cannot be re-encrypted without the old ' +
                 'password. If you just want to change your password, unlock first and use ' +
                 '"Change Master" instead.\n\nErase and start a new vault?'
@@ -293,11 +294,11 @@ class VaultXApp {
         const key = await CryptoUtil.deriveKey(newPassword, salt, CONFIG.PBKDF2_ITERATIONS);
         const encryptedEmpty = await CryptoUtil.encrypt(key, []);
 
-        sessionStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({
+        localStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({
             salt: CryptoUtil.bufToB64(salt),
             iterations: CONFIG.PBKDF2_ITERATIONS
         }));
-        sessionStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(encryptedEmpty));
+        localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(encryptedEmpty));
 
         this.vaultKey = key;
         this.currentEntries = [];
@@ -318,8 +319,8 @@ class VaultXApp {
         if (currentPassword === null) return;
 
         try {
-            const auth = JSON.parse(sessionStorage.getItem(CONFIG.AUTH_KEY));
-            const vaultBlob = JSON.parse(sessionStorage.getItem(CONFIG.STORAGE_KEY));
+            const auth = JSON.parse(localStorage.getItem(CONFIG.AUTH_KEY));
+            const vaultBlob = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY));
             const salt = CryptoUtil.b64ToBuf(auth.salt);
             const verifyKey = await CryptoUtil.deriveKey(currentPassword, salt, auth.iterations);
             await CryptoUtil.decrypt(verifyKey, vaultBlob.iv, vaultBlob.data); // throws if wrong password
@@ -339,11 +340,11 @@ class VaultXApp {
         const newKey = await CryptoUtil.deriveKey(newPassword, newSalt, CONFIG.PBKDF2_ITERATIONS);
         const encrypted = await CryptoUtil.encrypt(newKey, this.currentEntries);
 
-        sessionStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({
+        localStorage.setItem(CONFIG.AUTH_KEY, JSON.stringify({
             salt: CryptoUtil.bufToB64(newSalt),
             iterations: CONFIG.PBKDF2_ITERATIONS
         }));
-        sessionStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(encrypted));
+        localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(encrypted));
 
         this.vaultKey = newKey;
         this.showToast('Master password changed successfully');
@@ -356,9 +357,9 @@ class VaultXApp {
 
     logout() {
         // Locks the screen and drops the in-memory key. The encrypted vault
-        // stays in sessionStorage so the same master password unlocks it
-        // again later in this tab — only the browser session boundary
-        // (tab/browser close) wipes the data itself.
+        // stays in localStorage, so the same master password unlocks it
+        // again later — even after closing the browser or restarting the
+        // device. Nothing that could reconstruct the key is ever stored.
         this.vaultKey = null;
         this.currentEntries = [];
         this.elements.lockScreen?.classList.remove('hidden');
@@ -571,7 +572,7 @@ class VaultXApp {
         if (!this.vaultKey) return;
         try {
             const encrypted = await CryptoUtil.encrypt(this.vaultKey, this.currentEntries);
-            sessionStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(encrypted));
+            localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(encrypted));
         } catch (error) {
             this.showToast('Failed to save vault data', 'error');
         }
@@ -590,9 +591,9 @@ class VaultXApp {
         if (filteredEntries.length === 0) {
             this.elements.vaultList.innerHTML = `
                 <div class="empty-state">
-                    <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; color: var(--text-secondary);"></i>
+                    <i class="fas ${searchTerm ? 'fa-magnifying-glass' : 'fa-vault'}"></i>
                     <p>${searchTerm ? 'No matching entries found' : 'Your vault is empty'}</p>
-                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">
+                    <p class="empty-state-sub">
                         ${searchTerm ? 'Try a different search term' : 'Add your first password entry above'}
                     </p>
                 </div>
@@ -610,7 +611,7 @@ class VaultXApp {
                 <div class="vault-item">
                     <div class="vault-site">${this.escapeHtml(entry.site)}</div>
                     <div class="vault-username">${this.escapeHtml(entry.username)}</div>
-                    ${entry.notes ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">${this.escapeHtml(entry.notes)}</div>` : ''}
+                    ${entry.notes ? `<div class="vault-notes">${this.escapeHtml(entry.notes)}</div>` : ''}
                     <div class="vault-actions">
                         <button class="btn btn-secondary btn-small" data-action="copy-user" data-index="${originalIndex}">
                             <i class="fas fa-user"></i> Copy User
