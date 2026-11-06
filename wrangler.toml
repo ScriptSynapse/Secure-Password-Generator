@@ -1,0 +1,6 @@
+# Cloudflare Pages configuration (used by `wrangler pages deploy` and Git-connected builds).
+# Build command: npm run build   ·   Output directory: dist
+# Security headers are written to dist/_headers by the build.
+name = "vaultkey"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-10-01"
