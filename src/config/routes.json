@@ -1,0 +1,30 @@
+{
+  "/": {
+    "title": "VaultKey - Free Secure Password Generator",
+    "description": "Generate strong, random passwords instantly with VaultKey. Customize password length and complexity while keeping generation entirely in your browser."
+  },
+  "/generator": {
+    "title": "Password Generator - VaultKey",
+    "description": "Create strong passwords, passphrases and bulk password lists with browser-native cryptographic randomness. Nothing is sent to a server."
+  },
+  "/security": {
+    "title": "Security & How It Works - VaultKey",
+    "description": "How VaultKey generates passwords: Web Crypto randomness, rejection sampling, exact entropy estimates, a strict Content Security Policy and honest limitations."
+  },
+  "/privacy": {
+    "title": "Privacy Policy - VaultKey",
+    "description": "VaultKey's privacy policy: no accounts, no cookies, no analytics, and generated passwords never leave your browser."
+  },
+  "/terms": {
+    "title": "Terms of Use - VaultKey",
+    "description": "The terms that apply when you use the VaultKey password generator."
+  },
+  "/contact": {
+    "title": "Contact - VaultKey",
+    "description": "How to get in touch about VaultKey, report a bug or disclose a security issue."
+  },
+  "/404": {
+    "title": "Page not found - VaultKey",
+    "description": "This page doesn't exist. Head back to VaultKey's password generator."
+  }
+}

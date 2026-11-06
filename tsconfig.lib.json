@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/lib", "src/types", "tests/unit", "scripts/*.d.mts"],
+  "exclude": ["src/lib/router.tsx"]
+}
