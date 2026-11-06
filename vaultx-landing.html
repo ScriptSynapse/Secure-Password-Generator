@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VaultX — Passwords, encrypted where they belong: your device</title>
+    <meta name="description" content="VaultX generates strong passwords and stores them locally, encrypted with AES-256-GCM. No cloud. No servers. No account." />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <style>
+        :root {
+            --brass: #c9a227;
+            --brass-light: #e0bc4f;
+            --brass-dark: #9c7d1e;
+            --teal: #4f9e94;
+            --teal-light: #6dbcb1;
+            --bg-dark: #14171c;
+            --bg-card: #1b1f26;
+            --bg-input: #23282f;
+            --bg-raised: #21252c;
+            --text-primary: #eceae3;
+            --text-secondary: #949aa4;
+            --danger: #c9564a;
+            --border: #363c45;
+            --border-light: #454c57;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+            --shadow-md: 0 4px 10px -2px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+            --shadow-lg: 0 20px 44px -10px rgb(0 0 0 / 0.5), 0 6px 12px -4px rgb(0 0 0 / 0.3);
+            --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+            --container: 1120px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background:
+                    radial-gradient(ellipse 1000px 600px at 15% -10%, rgba(201, 162, 39, 0.08), transparent),
+                    radial-gradient(ellipse 800px 600px at 100% 5%, rgba(79, 158, 148, 0.07), transparent),
+                    var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        a { color: inherit; }
+
+        .wrap { max-width: var(--container); margin: 0 auto; padding: 0 1.5rem; }
+
+        /* ---------- Nav ---------- */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(20, 23, 28, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav .wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+
+        .brand { display: flex; align-items: center; gap: 0.6rem; }
+
+        .dial-wrap { display: inline-flex; width: 32px; height: 32px; filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.3)); }
+        .dial-mark { width: 100%; height: 100%; }
+        .dial-ring { stroke: var(--border-light); stroke-width: 3; fill: none; }
+        .dial-ticks line { stroke: var(--text-secondary); stroke-width: 2; stroke-linecap: round; }
+        .dial-pointer { stroke: var(--brass); stroke-width: 3; stroke-linecap: round; }
+        .dial-hub { fill: var(--brass); }
+
+        .brand-word {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 1.4rem;
+            letter-spacing: -0.01em;
+        }
+        .brand-word span { color: var(--brass); }
+
+        .nav-links { display: flex; align-items: center; gap: 2rem; }
+        .nav-links a.textlink {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        .nav-links a.textlink:hover { color: var(--text-primary); }
+
+        @media (max-width: 720px) {
+            .nav-links a.textlink { display: none; }
+        }
+
+        /* ---------- Buttons ---------- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--brass);
+            color: #1a1508;
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-primary:hover { background: var(--brass-light); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+        }
+        .btn-secondary:hover { background: var(--bg-input); border-color: var(--teal); }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 0.8rem 1rem;
+        }
+        .btn-ghost:hover { color: var(--text-primary); }
+
+        /* ---------- Hero ---------- */
+        .hero { padding: 5.5rem 0 4rem; text-align: center; }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--teal-light);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.4rem 0.9rem;
+            border-radius: 999px;
+            margin-bottom: 1.75rem;
+        }
+        .eyebrow i { color: var(--brass); }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2.2rem, 5.5vw, 3.6rem);
+            line-height: 1.12;
+            letter-spacing: -0.02em;
+            font-weight: 700;
+            max-width: 780px;
+            margin: 0 auto 1.25rem;
+        }
+
+        .hero h1 .accent { color: var(--brass); }
+
+        .hero p.lede {
+            max-width: 560px;
+            margin: 0 auto 2.25rem;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+        }
+
+        .hero-note {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+        .hero-note i { color: var(--teal); margin-right: 0.3rem; }
+
+        /* ---------- Demo card ---------- */
+        .demo-shell {
+            max-width: 480px;
+            margin: 3.5rem auto 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            text-align: left;
+            position: relative;
+        }
+
+        .demo-shell::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--brass), var(--teal));
+        }
+
+        .demo-titlebar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.9rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .demo-titlebar i { color: var(--brass); }
+
+        .demo-body { padding: 1.5rem; }
+
+        .demo-output {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 1.05rem;
+            letter-spacing: 0.02em;
+            word-break: break-all;
+            min-height: 56px;
+            display: flex;
+            align-items: center;
+            transition: var(--transition);
+        }
+        .demo-output.flash { border-color: var(--teal); box-shadow: 0 0 0 3px rgb(79 158 148 / 0.15); }
+
+        .demo-row {
+            display: flex;
+            gap: 0.6rem;
+            margin-top: 0.75rem;
+        }
+        .demo-row .btn { flex: 1; padding: 0.65rem 1rem; font-size: 0.85rem; }
+
+        .demo-slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin: 1.25rem 0 0.5rem;
+        }
+        .demo-slider-label span:last-child { font-family: var(--font-mono); color: var(--brass); font-weight: 600; }
+
+        .demo-slider {
+            width: 100%;
+            height: 6px;
+            appearance: none;
+            background: var(--bg-input);
+            border-radius: 3px;
+            outline: none;
+        }
+        .demo-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: var(--brass);
+            cursor: pointer;
+        }
+        .demo-slider::-moz-range-thumb {
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            border: none;
+            background: var(--brass);
+            cursor: pointer;
+        }
+
+        .demo-toggles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .demo-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.8rem;
+            border-radius: 999px;
+            border: 1px solid var(--border-light);
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            cursor: pointer;
+            user-select: none;
+            transition: var(--transition);
+        }
+        .demo-chip.active {
+            border-color: var(--teal);
+            color: var(--text-primary);
+            background: rgba(79, 158, 148, 0.12);
+        }
+        .demo-chip i { font-size: 0.7rem; }
+
+        .demo-strength {
+            margin-top: 1.1rem;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+        .demo-strength strong { color: var(--brass-light); font-family: var(--font-mono); }
+
+        /* ---------- Sections ---------- */
+        section { padding: 5rem 0; }
+
+        .section-head { text-align: center; max-width: 640px; margin: 0 auto 3rem; }
+        .section-head .kicker {
+            color: var(--brass);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+        }
+        .section-head h2 {
+            font-family: var(--font-display);
+            font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+            letter-spacing: -0.015em;
+            margin-bottom: 0.75rem;
+        }
+        .section-head p { color: var(--text-secondary); font-size: 1.02rem; }
+
+        /* Security */
+        .security-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .sec-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.85rem;
+            padding: 1.75rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .sec-card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--brass);
+        }
+        .sec-card .icon {
+            width: 42px; height: 42px;
+            border-radius: 0.6rem;
+            background: rgba(201, 162, 39, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--brass);
+            font-size: 1.1rem;
+            margin-bottom: 1.1rem;
+        }
+        .sec-card h3 { font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 0.5rem; }
+        .sec-card p { color: var(--text-secondary); font-size: 0.9rem; }
+
+        /* Feature list */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+        }
+        .feature {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            transition: var(--transition);
+        }
+        .feature:hover { background: var(--bg-card); }
+        .feature .icon {
+            flex: 0 0 auto;
+            width: 40px; height: 40px;
+            border-radius: 0.6rem;
+            background: rgba(79, 158, 148, 0.12);
+            color: var(--teal-light);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .feature h3 { font-size: 1rem; margin-bottom: 0.3rem; font-family: var(--font-display); }
+        .feature p { color: var(--text-secondary); font-size: 0.88rem; }
+
+        /* How it works */
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            counter-reset: step;
+        }
+        .step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.85rem;
+            padding: 1.75rem;
+            position: relative;
+        }
+        .step-num {
+            font-family: var(--font-display);
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--border-light);
+            margin-bottom: 0.75rem;
+            line-height: 1;
+        }
+        .step h3 { font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 0.5rem; }
+        .step p { color: var(--text-secondary); font-size: 0.9rem; }
+
+        /* Honesty callout */
+        .callout {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--teal);
+            border-radius: 0.75rem;
+            padding: 1.75rem 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+        .callout i { color: var(--teal-light); font-size: 1.3rem; margin-top: 0.15rem; }
+        .callout h3 { font-family: var(--font-display); font-size: 1rem; margin-bottom: 0.4rem; }
+        .callout p { color: var(--text-secondary); font-size: 0.9rem; }
+        .callout ul { margin: 0.6rem 0 0 1.1rem; color: var(--text-secondary); font-size: 0.9rem; }
+        .callout li { margin-bottom: 0.3rem; }
+
+        /* Final CTA */
+        .final-cta {
+            text-align: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 1.25rem;
+            padding: 3.5rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .final-cta::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 500px 300px at 50% 0%, rgba(201, 162, 39, 0.1), transparent);
+            pointer-events: none;
+        }
+        .final-cta h2 {
+            font-family: var(--font-display);
+            font-size: clamp(1.6rem, 3.5vw, 2.1rem);
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.015em;
+        }
+        .final-cta p { color: var(--text-secondary); margin-bottom: 2rem; }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 2.5rem 0;
+        }
+        .footer-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .footer-links { display: flex; gap: 1.5rem; }
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: var(--transition);
+        }
+        .footer-links a:hover { color: var(--text-primary); }
+        .footer-copy { color: var(--text-secondary); font-size: 0.8rem; }
+
+        @media (max-width: 640px) {
+            .footer-row { flex-direction: column; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <div class="wrap">
+        <div class="brand">
+            <span class="dial-wrap">
+                <svg class="dial-mark" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle class="dial-ring" cx="32" cy="32" r="27"/>
+                    <g class="dial-ticks">
+                        <line x1="32" y1="7" x2="32" y2="13"/>
+                        <line x1="32" y1="51" x2="32" y2="57"/>
+                        <line x1="7" y1="32" x2="13" y2="32"/>
+                        <line x1="51" y1="32" x2="57" y2="32"/>
+                        <line x1="14.9" y1="14.9" x2="19.2" y2="19.2"/>
+                        <line x1="44.8" y1="44.8" x2="49.1" y2="49.1"/>
+                        <line x1="14.9" y1="49.1" x2="19.2" y2="44.8"/>
+                        <line x1="44.8" y1="19.2" x2="49.1" y2="14.9"/>
+                    </g>
+                    <line class="dial-pointer" x1="32" y1="32" x2="32" y2="15" transform="rotate(35 32 32)"/>
+                    <circle class="dial-hub" cx="32" cy="32" r="5"/>
+                </svg>
+            </span>
+            <span class="brand-word">Vault<span>X</span></span>
+        </div>
+        <div class="nav-links">
+            <a class="textlink" href="#security">Security</a>
+            <a class="textlink" href="#features">Features</a>
+            <a class="textlink" href="#how">How it works</a>
+            <a class="btn btn-secondary" href="https://github.com/ScriptSynapse/Secure-Password-Generator" target="_blank" rel="noopener">
+                <i class="fab fa-github"></i> GitHub
+            </a>
+        </div>
+    </div>
+</nav>
+
+<header class="hero">
+    <div class="wrap">
+        <span class="eyebrow"><i class="fas fa-microchip"></i> AES-256-GCM · runs entirely in your browser</span>
+        <h1>Your passwords, encrypted where they <span class="accent">belong: your device</span>.</h1>
+        <p class="lede">VaultX generates strong passwords and stores them locally, locked behind a master password only you know. No account. No servers. No company holding your data.</p>
+        <div class="hero-ctas">
+            <a class="btn btn-primary" href="https://github.com/ScriptSynapse/Secure-Password-Generator" target="_blank" rel="noopener">
+                <i class="fas fa-download"></i> Get VaultX
+            </a>
+            <a class="btn btn-secondary" href="#how">
+                <i class="fas fa-play"></i> See how it works
+            </a>
+        </div>
+        <p class="hero-note"><i class="fas fa-check"></i>Free &amp; open source&nbsp;&nbsp;·&nbsp;&nbsp;<i class="fas fa-check"></i>No sign-up&nbsp;&nbsp;·&nbsp;&nbsp;<i class="fas fa-check"></i>Nothing leaves your browser</p>
+
+        <!-- Live demo -->
+        <div class="demo-shell">
+            <div class="demo-titlebar"><i class="fas fa-shuffle"></i> Try the generator</div>
+            <div class="demo-body">
+                <div id="demo-output" class="demo-output">Click Generate</div>
+                <div class="demo-row">
+                    <button class="btn btn-primary" id="demo-generate"><i class="fas fa-shuffle"></i> Generate</button>
+                    <button class="btn btn-secondary" id="demo-copy"><i class="fas fa-copy"></i> Copy</button>
+                </div>
+                <div class="demo-slider-label">
+                    <span>Length</span>
+                    <span id="demo-length-val">16</span>
+                </div>
+                <input type="range" min="8" max="32" value="16" class="demo-slider" id="demo-length">
+                <div class="demo-toggles">
+                    <span class="demo-chip active" data-set="upper"><i class="fas fa-check"></i> A-Z</span>
+                    <span class="demo-chip active" data-set="lower"><i class="fas fa-check"></i> a-z</span>
+                    <span class="demo-chip active" data-set="num"><i class="fas fa-check"></i> 0-9</span>
+                    <span class="demo-chip active" data-set="sym"><i class="fas fa-check"></i> !@#$</span>
+                </div>
+                <div class="demo-strength">
+                    <span>Estimated strength</span>
+                    <strong id="demo-strength-val">—</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<section id="security">
+    <div class="wrap">
+        <div class="section-head">
+            <div class="kicker">Security model</div>
+            <h2>Real encryption, not a marketing word</h2>
+            <p>Every entry is encrypted before it ever touches storage — here's exactly how.</p>
+        </div>
+        <div class="security-grid">
+            <div class="sec-card">
+                <div class="icon"><i class="fas fa-key"></i></div>
+                <h3>PBKDF2 key derivation</h3>
+                <p>Your master password runs through 250,000 rounds of PBKDF2 to derive an AES-256 key — never stored, only ever held in memory.</p>
+            </div>
+            <div class="sec-card">
+                <div class="icon"><i class="fas fa-lock"></i></div>
+                <h3>AES-256-GCM at rest</h3>
+                <p>Vault entries are encrypted with authenticated AES-GCM, so even a corrupted or tampered file fails to decrypt rather than silently returning garbage.</p>
+            </div>
+            <div class="sec-card">
+                <div class="icon"><i class="fas fa-house-laptop"></i></div>
+                <h3>Local-only, always</h3>
+                <p>There's no backend. Your encrypted vault lives in your browser's local storage on your device — nothing is ever transmitted anywhere.</p>
+            </div>
+            <div class="sec-card">
+                <div class="icon"><i class="fas fa-clock-rotate-left"></i></div>
+                <h3>Auto-lock on idle</h3>
+                <p>Step away and VaultX locks itself after 5 minutes, clearing the decryption key from memory until you unlock again.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="features">
+    <div class="wrap">
+        <div class="section-head">
+            <div class="kicker">Features</div>
+            <h2>Everything a password manager needs, nothing it doesn't</h2>
+        </div>
+        <div class="feature-grid">
+            <div class="feature">
+                <div class="icon"><i class="fas fa-dice"></i></div>
+                <div>
+                    <h3>Cryptographically random passwords</h3>
+                    <p>Built on <code>crypto.getRandomValues</code> with rejection sampling, not <code>Math.random()</code>.</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon"><i class="fas fa-gauge-high"></i></div>
+                <div>
+                    <h3>Entropy-based strength meter</h3>
+                    <p>See real strength feedback as you tune length and character sets.</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon"><i class="fas fa-magnifying-glass"></i></div>
+                <div>
+                    <h3>Searchable vault</h3>
+                    <p>Find any saved site or login instantly as you type.</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon"><i class="fas fa-file-export"></i></div>
+                <div>
+                    <h3>Import &amp; export</h3>
+                    <p>Back up or migrate your vault as JSON, Excel, or CSV whenever you want.</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon"><i class="fas fa-eye-slash"></i></div>
+                <div>
+                    <h3>Show/hide toggles</h3>
+                    <p>Reveal a password when you need to double-check it, hide it again with one click.</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon"><i class="fas fa-code-branch"></i></div>
+                <div>
+                    <h3>Open source</h3>
+                    <p>Every line is on GitHub. Read it, audit it, fork it.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="how">
+    <div class="wrap">
+        <div class="section-head">
+            <div class="kicker">How it works</div>
+            <h2>Three steps, no account required</h2>
+        </div>
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">01</div>
+                <h3>Create a master password</h3>
+                <p>Choose one password to protect everything. It's never sent anywhere — it only ever derives an encryption key in your browser's memory.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">02</div>
+                <h3>Generate &amp; save entries</h3>
+                <p>Create strong, random passwords for each site and save them to your vault along with the username and any notes.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">03</div>
+                <h3>Unlock whenever you need it</h3>
+                <p>Come back anytime — even after restarting your browser — and unlock with the same master password to decrypt your vault.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="wrap">
+        <div class="callout">
+            <i class="fas fa-circle-info"></i>
+            <div>
+                <h3>Worth knowing before you rely on this</h3>
+                <p>VaultX is a personal, client-side tool — not an audited commercial product. A few honest tradeoffs:</p>
+                <ul>
+                    <li>There's no password recovery. Forget your master password and the vault can't be decrypted — by you or anyone else.</li>
+                    <li>It's single-device. Your vault doesn't sync across browsers or computers — use Export for backups.</li>
+                    <li>For anything beyond casual personal use, an established, audited password manager is the safer choice.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="wrap">
+        <div class="final-cta">
+            <h2>Take five minutes and lock things down properly.</h2>
+            <p>It's free, it's open source, and it runs entirely in your browser.</p>
+            <a class="btn btn-primary" href="https://github.com/ScriptSynapse/Secure-Password-Generator" target="_blank" rel="noopener">
+                <i class="fas fa-download"></i> Get VaultX on GitHub
+            </a>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="wrap footer-row">
+        <div class="brand">
+            <span class="dial-wrap" style="width:24px;height:24px;">
+                <svg class="dial-mark" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle class="dial-ring" cx="32" cy="32" r="27"/>
+                    <g class="dial-ticks">
+                        <line x1="32" y1="7" x2="32" y2="13"/>
+                        <line x1="32" y1="51" x2="32" y2="57"/>
+                        <line x1="7" y1="32" x2="13" y2="32"/>
+                        <line x1="51" y1="32" x2="57" y2="32"/>
+                        <line x1="14.9" y1="14.9" x2="19.2" y2="19.2"/>
+                        <line x1="44.8" y1="44.8" x2="49.1" y2="49.1"/>
+                        <line x1="14.9" y1="49.1" x2="19.2" y2="44.8"/>
+                        <line x1="44.8" y1="19.2" x2="49.1" y2="14.9"/>
+                    </g>
+                    <line class="dial-pointer" x1="32" y1="32" x2="32" y2="15" transform="rotate(35 32 32)"/>
+                    <circle class="dial-hub" cx="32" cy="32" r="5"/>
+                </svg>
+            </span>
+            <span class="footer-copy">© 2026 VaultX. MIT Licensed.</span>
+        </div>
+        <div class="footer-links">
+            <a href="https://github.com/ScriptSynapse/Secure-Password-Generator" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://github.com/ScriptSynapse/Secure-Password-Generator#-security-model" target="_blank" rel="noopener">Security</a>
+            <a href="https://github.com/ScriptSynapse/Secure-Password-Generator/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+        </div>
+    </div>
+</footer>
+
+<script>
+    (function () {
+        const CHARSETS = {
+            upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            lower: 'abcdefghijklmnopqrstuvwxyz',
+            num: '0123456789',
+            sym: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+        };
+
+        const output = document.getElementById('demo-output');
+        const lengthSlider = document.getElementById('demo-length');
+        const lengthVal = document.getElementById('demo-length-val');
+        const strengthVal = document.getElementById('demo-strength-val');
+        const chips = document.querySelectorAll('.demo-chip');
+        const generateBtn = document.getElementById('demo-generate');
+        const copyBtn = document.getElementById('demo-copy');
+
+        function activeSets() {
+            return Array.from(chips).filter(c => c.classList.contains('active')).map(c => c.dataset.set);
+        }
+
+        function generatePassword() {
+            const length = parseInt(lengthSlider.value, 10);
+            const sets = activeSets();
+            let chars = sets.map(s => CHARSETS[s]).join('');
+            if (!chars) {
+                chars = CHARSETS.lower;
+            }
+
+            const maxValid = Math.floor(256 / chars.length) * chars.length;
+            const bytes = new Uint8Array(1);
+            let password = '';
+            while (password.length < length) {
+                crypto.getRandomValues(bytes);
+                if (bytes[0] < maxValid) {
+                    password += chars.charAt(bytes[0] % chars.length);
+                }
+            }
+            return password;
+        }
+
+        function calcStrength() {
+            const length = parseInt(lengthSlider.value, 10);
+            const sets = activeSets();
+            let complexity = 0;
+            if (sets.includes('upper')) complexity += 26;
+            if (sets.includes('lower')) complexity += 26;
+            if (sets.includes('num')) complexity += 10;
+            if (sets.includes('sym')) complexity += 32;
+            const entropy = complexity > 0 ? Math.log2(complexity) * length : 0;
+
+            if (entropy < 28) return 'Very Weak';
+            if (entropy < 40) return 'Weak';
+            if (entropy < 60) return 'Fair';
+            if (entropy < 80) return 'Strong';
+            if (entropy < 100) return 'Very Strong';
+            return 'Excellent';
+        }
+
+        function refreshStrengthLabel() {
+            strengthVal.textContent = calcStrength();
+        }
+
+        lengthSlider.addEventListener('input', () => {
+            lengthVal.textContent = lengthSlider.value;
+            refreshStrengthLabel();
+        });
+
+        chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                const activeCount = activeSets().length;
+                if (chip.classList.contains('active') && activeCount === 1) return; // keep at least one set on
+                chip.classList.toggle('active');
+                refreshStrengthLabel();
+            });
+        });
+
+        generateBtn.addEventListener('click', () => {
+            output.textContent = generatePassword();
+            output.classList.add('flash');
+            setTimeout(() => output.classList.remove('flash'), 400);
+            refreshStrengthLabel();
+        });
+
+        copyBtn.addEventListener('click', () => {
+            const text = output.textContent;
+            if (!text || text === 'Click Generate') return;
+            navigator.clipboard.writeText(text).then(() => {
+                const original = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                setTimeout(() => { copyBtn.innerHTML = original; }, 1200);
+            });
+        });
+
+        refreshStrengthLabel();
+    })();
+</script>
+</body>
+</html>
